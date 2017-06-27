@@ -34,6 +34,9 @@
     <Content Include="data.csv">
       <SubType>Code</SubType>
     </Content>
+    <Content Include="representativeelements.csv">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="target.csv">
       <SubType>Code</SubType>
     </Content>
