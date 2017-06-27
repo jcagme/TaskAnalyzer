@@ -2,6 +2,7 @@ import jellyfish
 import numpy as np
 import pandas as pd
 import pickle
+import sys
 
 from difflib import SequenceMatcher
 from sklearn import svm, preprocessing
@@ -53,7 +54,7 @@ representativeElementOfEqClass = ['E:\\A\\_work\\0\\b\\pipelineRepository\\Tools
 pickleClf = open('linearClf.pickle','rb')
 linearClf = pickle.load(pickleClf)
 
-getEqClass = input()
+getEqClass = sys.argv[1]
 vector = []
 for r in representativeElementOfEqClass:
     vector.append(custom_distance(getEqClass, r))
