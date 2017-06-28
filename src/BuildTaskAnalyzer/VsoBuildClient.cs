@@ -16,7 +16,7 @@
         static VsoBuildClient()
         {
             Uri vsoCollectionUri = new Uri("https://devdiv.visualstudio.com/DefaultCollection");
-            VssBasicCredential basicCredential = new VssBasicCredential(string.Empty, "<--VSTS Personal Acces Token-->");
+            VssBasicCredential basicCredential = new VssBasicCredential(string.Empty, "");
             connection = new VssConnection(vsoCollectionUri, basicCredential);
         }
 
@@ -72,12 +72,12 @@
                             {
                                 buildFailuresWithLogs.AddRange(
                                     GetBuildsAndLogs(
-                                        buildClient, 
-                                        build.BuildNumber, 
-                                        record, 
-                                        build.BuildDefinitionName, 
-                                        build.CreatedDate, 
-                                        build.Source, 
+                                        buildClient,
+                                        build.BuildNumber,
+                                        record,
+                                        build.BuildDefinitionName,
+                                        build.CreatedDate,
+                                        build.Source,
                                         patterns));
                             }
                         }
@@ -116,7 +116,7 @@
                 count = builds.Count;
             } while (count == top);
 
-            return failedBuilds;            
+            return failedBuilds;
         }
 
         public static void GetWarningsFromBuildAsync(BuildFailure buildWarning)
@@ -151,9 +151,9 @@
         }
 
         private static List<BuildFailure> GetBuildsAndLogs(
-            BuildHttpClient buildClient, 
-            int buildNumber, 
-            TimelineRecord record, 
+            BuildHttpClient buildClient,
+            int buildNumber,
+            TimelineRecord record,
             string buildDefName,
             DateTime createdDate,
             string source,
@@ -171,14 +171,14 @@
                     if (m.Success)
                     {
                         string parsedLog = log;
-                        Guid equivalenceClassId = default(Guid);
+                        int clusterId = -1;
                         Match parsedLogMatch = Regex.Match(log, @"[\d]{4}-[\d]{2}-[\d]{2}T[\d]{2}:[\d]{2}:[\d]{2}\.[\d]*Z[\s]*([\d\w\W]*)");
 
                         if (parsedLogMatch.Success)
                         {
                             parsedLog = parsedLogMatch.Groups[1].Value;
                             parsedLog = NormalizeLog(parsedLog);
-                            equivalenceClassId = SqlClient.GetEquivalenceClassId(parsedLog);
+                            clusterId = SqlClient.GetEquivalenceClassId(parsedLog);
                         }
 
                         BuildFailure buildFailureWithLogs = new BuildFailure
@@ -186,7 +186,7 @@
                             BuildDefinitionName = buildDefName,
                             BuildNumber = buildNumber,
                             CreatedDate = createdDate,
-                            EquivalenceClassId = equivalenceClassId,
+                            ClusterId = clusterId,
                             LogUri = record.Log.Url,
                             Failure = record.Name,
                             MatchedError = parsedLog,

@@ -8,9 +8,31 @@
 
     static class SqlClient
     {
-        private const string LocalConnectionString = "<--Local Connections String-->";
-        private const string HelixProdConnectionString = "<--Helix Prod Connection String-->";
-        private static List<EquivalanceClass> equivalenceClasses = new List<EquivalanceClass>();
+        private const string LocalConnectionString = "";
+        private const string HelixProdConnectionString = "";
+        private static List<Cluster> equivalenceClasses = new List<Cluster>();
+
+        public static List<string> GetUniqueFailureLogs()
+        {
+            List<string> failureLogs = new List<string>();
+
+            using (SqlConnection connection = new SqlConnection(LocalConnectionString))
+            {
+                SqlCommand command = new SqlCommand("SELECT DISTINCT MatchedError FROM TaskFailureLogs", connection);
+                connection.Open();
+
+                SqlDataReader reader = command.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    failureLogs.Add(reader.GetString(0));
+                }
+
+                reader.Close();
+            }
+
+            return failureLogs;
+        }
 
         public static DateTime? GetMaxDate()
         {
@@ -52,7 +74,7 @@ WHERE VsoBuildId not in
 (
 	SELECT DISTINCT(VsoBuildId)
 	FROM TaskFailureLogs
-)";                
+)";
 
                 SqlCommand command = new SqlCommand(query, connection);
                 connection.Open();
@@ -150,9 +172,9 @@ WHERE ErrorCount > 0";
             return buildNumbers;
         }
 
-        public static Guid GetEquivalenceClassId(string log)
+        public static int GetEquivalenceClassId(string log)
         {
-            Guid equivalenceClassId = default(Guid);
+            int clusterId = -1;
 
             if (equivalenceClasses.Count == 0)
             {
@@ -165,10 +187,10 @@ WHERE ErrorCount > 0";
 
                     while (reader.Read())
                     {
-                        equivalenceClasses.Add(new EquivalanceClass
+                        equivalenceClasses.Add(new Cluster
                         {
                             Name = reader.GetString(0),
-                            Id = reader.GetGuid(1)
+                            Id = reader.GetInt32(1)
                         });
                     }
 
@@ -176,14 +198,14 @@ WHERE ErrorCount > 0";
                 }
             }
 
-            equivalenceClassId = equivalenceClasses.Where(e => e.Name == log).Select(e => e.Id).FirstOrDefault();
+            clusterId = equivalenceClasses.Where(e => e.Name == log).Select(e => e.Id).FirstOrDefault();
 
-            return equivalenceClassId;
+            return clusterId;
         }
 
         public static List<string> GetPatterns()
         {
-            List<string> matches = new List<string>();
+            List<string> patterns = new List<string>();
 
             using (SqlConnection connection = new SqlConnection(LocalConnectionString))
             {
@@ -194,11 +216,11 @@ WHERE ErrorCount > 0";
 
                 while (reader.Read())
                 {
-                    matches.Add(reader.GetString(0));
+                    patterns.Add(reader.GetString(0));
                 }
             }
 
-            return matches;
+            return patterns;
         }
 
         public static void InsertNewTaskFailures(BuildFailure buildFailure)
@@ -248,7 +270,7 @@ WHERE ErrorCount > 0";
                                ,[FailedTaskName]
                                ,[MatchedError]
                                ,[LogUri]
-                               ,[EquivalenceClassID])
+                               ,[ClusterID])
                          VALUES
                                (@CreatedDate,
                                 @VsoBuildId,
@@ -257,7 +279,7 @@ WHERE ErrorCount > 0";
                                 @FailedTaskName,
                                 @MatchedError,
                                 @LogUri,
-                                @EquivalenceClassID)", connection);
+                                @ClusterID)", connection);
                     command.Parameters.AddWithValue("@CreatedDate", buildFailure.CreatedDate);
                     command.Parameters.AddWithValue("@VsoBuildId", buildFailure.BuildNumber);
                     command.Parameters.AddWithValue("@Source", buildFailure.Source);
@@ -265,7 +287,7 @@ WHERE ErrorCount > 0";
                     command.Parameters.AddWithValue("@FailedTaskName", buildFailure.Failure);
                     command.Parameters.AddWithValue("@MatchedError", buildFailure.MatchedError);
                     command.Parameters.AddWithValue("@LogUri", buildFailure.LogUri);
-                    command.Parameters.AddWithValue("@EquivalenceClassID", buildFailure.EquivalenceClassId);
+                    command.Parameters.AddWithValue("@ClusterID", buildFailure.ClusterId);
                     command.ExecuteNonQuery();
                 }
             }

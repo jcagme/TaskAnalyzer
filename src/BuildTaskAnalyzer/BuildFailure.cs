@@ -18,6 +18,6 @@
 
         public string MatchedError { get; set; }
 
-        public Guid EquivalenceClassId { get; set; } 
+        public int ClusterId { get; set; }
     }
 }
