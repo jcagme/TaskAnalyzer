@@ -1,6 +1,11 @@
+import sys
+import pickle
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'virtualenv/Lib/site-packages')))
+
 import numpy as np
 import pandas as pd
-import pickle
 
 from difflib import SequenceMatcher
 from sklearn import svm, preprocessing, cross_validation
@@ -10,7 +15,7 @@ target_vector = []
 
 data = pd.read_csv("data.csv")
 target = pd.read_csv("target.csv")
-for i in range(0, 240):
+for i in range(0, len(data.columns)-1):
     data_vectors.append(data[str(i)].tolist())
     target_vector.append(target[str(i)].tolist())
 target_vector = np.array([i for sublist in target_vector for i in sublist])
