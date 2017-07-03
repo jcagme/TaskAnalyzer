@@ -16,8 +16,8 @@ target_vector = []
 data = pd.read_csv("data.csv")
 target = pd.read_csv("target.csv")
 for i in range(0, len(data.columns)-1):
-    data_vectors.append(data[i].tolist())
-    target_vector.append(target[i].tolist())
+    data_vectors.append(data[str(i)].tolist())
+    target_vector.append(target[str(i)].tolist())
 target_vector = np.array([i for sublist in target_vector for i in sublist])    
 data_vectors = np.array(data_vectors)
 

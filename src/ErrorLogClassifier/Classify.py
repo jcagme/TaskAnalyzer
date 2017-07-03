@@ -21,7 +21,11 @@ class Classify:
             if self.keywords[word] in log:
                 vector[word] = vector[word] + 1
         vector = np.array(vector)
-        return self.linearClf.predict(vector.reshape(1,-1))[0]
+
+        with open('clusters.json') as f:
+            data = json.load(f)
+
+        return json.dumps(data["clusters"][int(self.linearClf.predict(vector.reshape(1,-1))[0])])
 
     def __init__(self):
         self.keywords = pd.read_csv("keywords.csv")['Keyword'].tolist()
