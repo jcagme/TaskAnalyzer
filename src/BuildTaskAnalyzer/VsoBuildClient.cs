@@ -20,126 +20,26 @@
             connection = new VssConnection(vsoCollectionUri, basicCredential);
         }
 
-        public static List<BuildFailure> GetFailedTaskDataFromBuildAsync(DateTime createdDate, int buildNumber, string source, List<string> patterns)
+        public static List<BuildError> GetFailedTaskDataFromBuild(DateTime createdDate, int vsoBuildId, string buildNumber, int jobId, string source, List<string> patterns)
         {
-            List<BuildFailure> failures = new List<BuildFailure>();
+            List<BuildError> failures = new List<BuildError>();
             BuildHttpClient buildClient = connection.GetClientAsync<BuildHttpClient>().Result;
-            Build buildData = buildClient.GetBuildAsync("DevDiv", buildNumber).Result;
+            Build buildData = buildClient.GetBuildAsync("DevDiv", vsoBuildId).Result;
             string buildDefName = buildData.Definition.Name;
-            List<TimelineRecord> failedBuildTasks = GetFailedTasks(buildNumber);
+            List<TimelineRecord> failedBuildTasks = GetFailedTasks(vsoBuildId);
 
             if (failedBuildTasks.Count > 0)
             {
                 foreach (TimelineRecord record in failedBuildTasks)
                 {
-                    BuildFailure buildFailure = new BuildFailure
-                    {
-                        BuildDefinitionName = buildDefName,
-                        BuildNumber = buildNumber,
-                        CreatedDate = createdDate,
-                        Failure = record.Name,
-                        Source = source
-                    };
-
-                    SqlClient.InsertNewTaskFailures(buildFailure);
-
                     if (record.Log != null)
                     {
-                        failures.AddRange(GetBuildsAndLogs(buildClient, buildNumber, record, buildDefName, createdDate, source, patterns));
+                        failures.AddRange(GetLogsForBuild(buildClient, vsoBuildId, buildNumber, jobId, record, buildDefName, createdDate, source, patterns));
                     }
                 }
             }
 
             return failures;
-        }
-
-        public static List<BuildFailure> GetNewLogEntries(List<BuildFailure> buildWithNoLogs)
-        {
-            List<BuildFailure> buildFailuresWithLogs = new List<BuildFailure>();
-            BuildHttpClient buildClient = connection.GetClientAsync<BuildHttpClient>().Result;
-            List<string> patterns = SqlClient.GetPatterns();
-
-            foreach (BuildFailure build in buildWithNoLogs)
-            {
-                try
-                {
-                    List<TimelineRecord> failedBuildTasks = GetFailedTasks(build.BuildNumber);
-                    if (failedBuildTasks.Count > 0)
-                    {
-                        foreach (TimelineRecord record in failedBuildTasks)
-                        {
-                            if (record.Log != null)
-                            {
-                                buildFailuresWithLogs.AddRange(
-                                    GetBuildsAndLogs(
-                                        buildClient,
-                                        build.BuildNumber,
-                                        record,
-                                        build.BuildDefinitionName,
-                                        build.CreatedDate,
-                                        build.Source,
-                                        patterns));
-                            }
-                        }
-                    }
-                }
-                catch
-                { }
-            }
-
-            return buildFailuresWithLogs;
-        }
-
-        public static List<BuildFailure> GetFailedBuildsAsync()
-        {
-            BuildHttpClient buildClient = connection.GetClientAsync<BuildHttpClient>().Result;
-            List<BuildFailure> failedBuilds = new List<BuildFailure>();
-            DateTime? minDate = new DateTime(2016, 06, 01);
-            int count = 0;
-            int top = 1000;
-
-            do
-            {
-                List<Build> builds = buildClient.GetBuildsAsync("DevDiv", minFinishTime: minDate, top: top).Result;
-                List<Build> failedBs = builds.Where(b => b.Result == BuildResult.Failed).ToList();
-
-                foreach (Build failedBuild in failedBs)
-                {
-                    failedBuilds.Add(new BuildFailure
-                    {
-                        BuildDefinitionName = failedBuild.Definition.Name,
-                        BuildNumber = failedBuild.Id
-                    });
-                }
-
-                minDate = builds.Max(b => b.FinishTime);
-                count = builds.Count;
-            } while (count == top);
-
-            return failedBuilds;
-        }
-
-        public static void GetWarningsFromBuildAsync(BuildFailure buildWarning)
-        {
-            List<string> warnings = new List<string>();
-            BuildHttpClient buildClient = connection.GetClientAsync<BuildHttpClient>().Result;
-            Build buildData = buildClient.GetBuildAsync("DevDiv", buildWarning.BuildNumber).Result;
-            string buildDefName = buildData.Definition.Name;
-            buildWarning.BuildDefinitionName = buildDefName;
-            Timeline buildTimeline = buildClient.GetBuildTimelineAsync("DevDiv", buildWarning.BuildNumber).Result;
-            List<List<Issue>> issuesList = buildTimeline.Records.Where(b => b.WarningCount > 0).Select(w => w.Issues).ToList();
-
-            foreach (List<Issue> issues in issuesList)
-            {
-                List<string> issueList = issues.Select(i => i.Message).ToList();
-
-                if (issueList.Count > 0)
-                {
-                    warnings.AddRange(issueList);
-                }
-            }
-
-            buildWarning.Failure = string.Join(" & ", warnings);
         }
 
         private static List<TimelineRecord> GetFailedTasks(int buildNumber)
@@ -150,17 +50,19 @@
             return failedBuildTasks;
         }
 
-        private static List<BuildFailure> GetBuildsAndLogs(
+        private static List<BuildError> GetLogsForBuild(
             BuildHttpClient buildClient,
-            int buildNumber,
+            int vsoBuildId,
+            string buildNumber,
+            int jobId,
             TimelineRecord record,
             string buildDefName,
             DateTime createdDate,
             string source,
             List<string> patterns)
         {
-            List<BuildFailure> buildsWithLogs = new List<BuildFailure>();
-            List<string> logs = buildClient.GetBuildLogLinesAsync("DevDiv", buildNumber, record.Log.Id).Result;
+            List<BuildError> buildsWithLogs = new List<BuildError>();
+            List<string> logs = buildClient.GetBuildLogLinesAsync("DevDiv", vsoBuildId, record.Log.Id).Result;
 
             foreach (string log in logs)
             {
@@ -171,24 +73,23 @@
                     if (m.Success)
                     {
                         string parsedLog = log;
-                        int clusterId = -1;
                         Match parsedLogMatch = Regex.Match(log, @"[\d]{4}-[\d]{2}-[\d]{2}T[\d]{2}:[\d]{2}:[\d]{2}\.[\d]*Z[\s]*([\d\w\W]*)");
 
                         if (parsedLogMatch.Success)
                         {
                             parsedLog = parsedLogMatch.Groups[1].Value;
                             parsedLog = NormalizeLog(parsedLog);
-                            clusterId = SqlClient.GetEquivalenceClassId(parsedLog);
                         }
 
-                        BuildFailure buildFailureWithLogs = new BuildFailure
+                        BuildError buildFailureWithLogs = new BuildError
                         {
                             BuildDefinitionName = buildDefName,
+                            VsoBuildId = vsoBuildId,
                             BuildNumber = buildNumber,
                             CreatedDate = createdDate,
-                            ClusterId = clusterId,
+                            JobId = jobId,
                             LogUri = record.Log.Url,
-                            Failure = record.Name,
+                            FailedTask = record.Name,
                             MatchedError = parsedLog,
                             Source = source
                         };

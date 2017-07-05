@@ -2,22 +2,28 @@
 {
     using System;
 
-    public class BuildFailure
+    public class BuildError
     {
         public DateTime CreatedDate { get; set; }
 
-        public int BuildNumber { get; set; }
+        public int VsoBuildId { get; set; }
+
+        public string BuildNumber { get; set; }
 
         public string BuildDefinitionName { get; set; }
 
         public string Source { get; set; }
 
-        public string Failure { get; set; }
+        public string FailedTask { get; set; }
 
         public string LogUri { get; set; }
 
         public string MatchedError { get; set; }
 
-        public int ClusterId { get; set; }
+        public string Category { get; set; }
+
+        public int Class { get; set; }
+
+        public int JobId { get; set; }
     }
 }

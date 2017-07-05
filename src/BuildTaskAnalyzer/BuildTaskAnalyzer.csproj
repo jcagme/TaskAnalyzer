@@ -96,8 +96,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BuildFailure.cs" />
-    <Compile Include="Cluster.cs" />
+    <Compile Include="BuildError.cs" />
+    <Compile Include="Classifier.cs" />
+    <Compile Include="Classification.cs" />
     <Compile Include="Helpers.cs" />
     <Compile Include="OutputManager.cs" />
     <Compile Include="Program.cs" />

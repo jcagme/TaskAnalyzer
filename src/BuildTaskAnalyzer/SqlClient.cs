@@ -3,14 +3,13 @@
     using System;
     using System.Collections.Generic;
     using System.Data.SqlClient;
-    using System.Linq;
     using System.Text.RegularExpressions;
 
     static class SqlClient
     {
         private const string LocalConnectionString = "";
         private const string HelixProdConnectionString = "";
-        private static List<Cluster> equivalenceClasses = new List<Cluster>();
+        private static List<Classification> equivalenceClasses = new List<Classification>();
 
         public static List<string> GetUniqueFailureLogs()
         {
@@ -56,25 +55,17 @@
             }
         }
 
-        public static List<BuildFailure> GetBuildWithNoLogs()
+        public static List<string> GetUncategorizedLogs()
         {
-            List<BuildFailure> builds = new List<BuildFailure>();
+            List<string> logs = new List<string>();
 
             using (SqlConnection connection = new SqlConnection(LocalConnectionString))
             {
                 string query = @"
-SELECT 
-	CreatedDate, 
-	VsoBuildId, 
-	BuildDefinitionName,
-	FailedTaskName,
-    Source
-FROM TaskFailure
-WHERE VsoBuildId not in
-(
-	SELECT DISTINCT(VsoBuildId)
-	FROM TaskFailureLogs
-)";
+SELECT DISTINCT MatchedError 
+FROM TaskFailureLogs
+WHERE Category IS NULL 
+OR Class IS NULL";
 
                 SqlCommand command = new SqlCommand(query, connection);
                 connection.Open();
@@ -84,31 +75,28 @@ WHERE VsoBuildId not in
 
                 while (reader.Read())
                 {
-                    builds.Add(new BuildFailure
-                    {
-                        CreatedDate = reader.GetDateTime(0),
-                        BuildNumber = reader.GetInt32(1),
-                        BuildDefinitionName = reader.GetString(2),
-                        Failure = reader.GetString(3),
-                        Source = reader.GetString(4)
-                    });
+                    logs.Add(reader.GetString(0));
                 }
 
                 reader.Close();
             }
 
-            return builds;
+            return logs;
         }
 
-        public static List<BuildFailure> GetFailedBuildData(DateTime? startDate)
+        public static List<BuildError> GetFailedBuildData(DateTime? startDate)
         {
             string baseQuery = @"
 SELECT
 	[Source],
     [Uri],
-    [Created]
+    [Created],
+	JobId,
+	Build
 FROM (
 	SELECT
+		Jobs.JobId,
+		Jobs.Build,
         Jobs.Source,
 		Jobs.Created,
         EventData.Name as UriName,
@@ -135,7 +123,7 @@ PIVOT
         FOR CountName IN ([WarningCount], [ErrorCount])
     ) AS countPivot
 WHERE ErrorCount > 0";
-            List<BuildFailure> buildNumbers = new List<BuildFailure>();
+            List<BuildError> buildNumbers = new List<BuildError>();
 
             using (SqlConnection connection = new SqlConnection(HelixProdConnectionString))
             {
@@ -156,12 +144,14 @@ WHERE ErrorCount > 0";
 
                     if (match.Success)
                     {
-                        int buildNumber = int.Parse(match.Groups[1].Value);
-                        buildNumbers.Add(new BuildFailure
+                        int vsoBuildNumber = int.Parse(match.Groups[1].Value);
+                        buildNumbers.Add(new BuildError
                         {
                             CreatedDate = new DateTime(reader.GetDateTimeOffset(2).Ticks),
                             Source = reader.GetString(0),
-                            BuildNumber = buildNumber
+                            VsoBuildId = vsoBuildNumber,
+                            BuildNumber = reader.GetString(4),
+                            JobId = reader.GetInt32(3)
                         });
                     }
                 }
@@ -170,37 +160,6 @@ WHERE ErrorCount > 0";
             }
 
             return buildNumbers;
-        }
-
-        public static int GetEquivalenceClassId(string log)
-        {
-            int clusterId = -1;
-
-            if (equivalenceClasses.Count == 0)
-            {
-                using (SqlConnection connection = new SqlConnection(LocalConnectionString))
-                {
-                    SqlCommand command = new SqlCommand("SELECT [Name], [ID] FROM Cluster", connection);
-                    connection.Open();
-
-                    SqlDataReader reader = command.ExecuteReader();
-
-                    while (reader.Read())
-                    {
-                        equivalenceClasses.Add(new Cluster
-                        {
-                            Name = reader.GetString(0),
-                            Id = reader.GetInt32(1)
-                        });
-                    }
-
-                    reader.Close();
-                }
-            }
-
-            clusterId = equivalenceClasses.Where(e => e.Name == log).Select(e => e.Id).FirstOrDefault();
-
-            return clusterId;
         }
 
         public static List<string> GetPatterns()
@@ -223,98 +182,104 @@ WHERE ErrorCount > 0";
             return patterns;
         }
 
-        public static void InsertNewTaskFailures(BuildFailure buildFailure)
+        public static void InsertNewFailuresLogs(List<BuildError> buildFailures)
         {
             using (SqlConnection connection = new SqlConnection(LocalConnectionString))
             {
                 connection.Open();
 
-                SqlCommand command =
-                new SqlCommand(@"
-                    INSERT INTO [dbo].[TaskFailure]
-                               ([CreatedDate],
-                               [VsoBuildId],
-                               [Source],
-                               [BuildDefinitionName],
-                               [FailedTaskName])
-                         VALUES
-                               (@CreatedDate,
-                                @VsoBuildId,
-                                @Source,
-                                @BuildDefinitionName,
-                                @FailedTaskName)", connection);
-                command.Parameters.AddWithValue("@CreatedDate", buildFailure.CreatedDate);
-                command.Parameters.AddWithValue("@VsoBuildId", buildFailure.BuildNumber);
-                command.Parameters.AddWithValue("@Source", buildFailure.Source);
-                command.Parameters.AddWithValue("@BuildDefinitionName", buildFailure.BuildDefinitionName);
-                command.Parameters.AddWithValue("@FailedTaskName", buildFailure.Failure);
-                command.ExecuteNonQuery();
-            }
-        }
-
-        public static void InsertNewFailuresLogs(List<BuildFailure> buildFailures)
-        {
-            using (SqlConnection connection = new SqlConnection(LocalConnectionString))
-            {
-                connection.Open();
-
-                foreach (BuildFailure buildFailure in buildFailures)
+                foreach (BuildError buildFailure in buildFailures)
                 {
                     SqlCommand command =
                     new SqlCommand(@"
                     INSERT INTO [dbo].[TaskFailureLogs]
                                ([CreatedDate]
                                ,[VsoBuildId]
+                               ,[BuildNumber] 
+                               ,[JobId]
                                ,[Source]
                                ,[BuildDefinitionName]
                                ,[FailedTaskName]
                                ,[MatchedError]
                                ,[LogUri]
-                               ,[ClusterID])
+                               ,[Category]
+                               ,[Class])
                          VALUES
                                (@CreatedDate,
                                 @VsoBuildId,
+                                @BuildNumber,
+                                @JobId,
                                 @Source,
                                 @BuildDefinitionName,
                                 @FailedTaskName,
                                 @MatchedError,
                                 @LogUri,
-                                @ClusterID)", connection);
+                                @Category,
+                                @Class)", connection);
                     command.Parameters.AddWithValue("@CreatedDate", buildFailure.CreatedDate);
-                    command.Parameters.AddWithValue("@VsoBuildId", buildFailure.BuildNumber);
+                    command.Parameters.AddWithValue("@VsoBuildId", buildFailure.VsoBuildId);
+                    command.Parameters.AddWithValue("@BuildNumber", buildFailure.BuildNumber);
+                    command.Parameters.AddWithValue("@JobId", buildFailure.JobId);
                     command.Parameters.AddWithValue("@Source", buildFailure.Source);
                     command.Parameters.AddWithValue("@BuildDefinitionName", buildFailure.BuildDefinitionName);
-                    command.Parameters.AddWithValue("@FailedTaskName", buildFailure.Failure);
+                    command.Parameters.AddWithValue("@FailedTaskName", buildFailure.FailedTask);
                     command.Parameters.AddWithValue("@MatchedError", buildFailure.MatchedError);
                     command.Parameters.AddWithValue("@LogUri", buildFailure.LogUri);
-                    command.Parameters.AddWithValue("@ClusterID", buildFailure.ClusterId);
+                    command.Parameters.AddWithValue("@Category", buildFailure.Category);
+                    command.Parameters.AddWithValue("@Class", buildFailure.Class);
                     command.ExecuteNonQuery();
                 }
             }
         }
 
-        private static Guid InsertNewEquivalenceClass(string log)
+        public static void UpdateUncategorizedLogs(List<string> logs)
         {
-            Guid equivalenceClassId = Guid.NewGuid();
-
             using (SqlConnection connection = new SqlConnection(LocalConnectionString))
             {
                 connection.Open();
 
-                SqlCommand command =
-                new SqlCommand(@"
-                    INSERT INTO [dbo].[LevsEquivalenceClass]
-                               ([ClassName]
-                               ,[EquivalenceClassID])
-                         VALUES
-                               (@ClassName,
-                                @Id)", connection);
-                command.Parameters.AddWithValue("@ClassName", log);
-                command.Parameters.AddWithValue("@Id", equivalenceClassId);
-                command.ExecuteNonQuery();
-            }
+                List<Classification> classifications = Classifier.GetClassifications(logs);
 
-            return equivalenceClassId;
+                foreach (Classification classification in classifications)
+                {
+                    SqlCommand command =
+                    new SqlCommand(@"
+                    UPDATE [dbo].[TaskFailureLogs]
+                    SET [Category] = @Category, 
+                        [Class] = @Class
+                    WHERE MatchedError = @Log", connection);
+                    command.Parameters.AddWithValue("@Category", classification.Category);
+                    command.Parameters.AddWithValue("@Class", classification.ErrorClass);
+                    command.Parameters.AddWithValue("@Log", classification.Log);
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public static void UpdateBuildIdAndJobId(List<BuildError> errors)
+        {
+            using (SqlConnection connection = new SqlConnection(LocalConnectionString))
+            {
+                connection.Open();
+
+                foreach (BuildError error in errors)
+                {
+                    SqlCommand command =
+                    new SqlCommand(@"
+                    UPDATE [dbo].[TaskFailureLogs]
+                    SET [JobId] = @JobId, 
+                        [BuildNumber] = @BuildNumber
+                    WHERE CreatedDate = @CreatedDate
+                    AND Source = @Source
+                    AND VsoBuildId = @VsoBuildId", connection);
+                    command.Parameters.AddWithValue("@JobId", error.JobId);
+                    command.Parameters.AddWithValue("@BuildNumber", error.BuildNumber);
+                    command.Parameters.AddWithValue("@CreatedDate", error.CreatedDate);
+                    command.Parameters.AddWithValue("@Source", error.Source);
+                    command.Parameters.AddWithValue("@VsoBuildId", error.VsoBuildId);
+                    command.ExecuteNonQuery();
+                }
+            }
         }
     }
 }

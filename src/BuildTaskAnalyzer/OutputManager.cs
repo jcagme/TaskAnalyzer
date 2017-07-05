@@ -8,15 +8,21 @@
         public static void SaveTaskFailures()
         {
             DateTime? startDate = SqlClient.GetMaxDate();
-            List<BuildFailure> failedBuilds = SqlClient.GetFailedBuildData(startDate);
+            List<BuildError> failedBuilds = SqlClient.GetFailedBuildData(startDate);
 
             List<string> patterns = SqlClient.GetPatterns();
 
-            foreach (BuildFailure failedBuild in failedBuilds)
+            foreach (BuildError failedBuild in failedBuilds)
             {
                 try
                 {
-                    List<BuildFailure> failures = VsoBuildClient.GetFailedTaskDataFromBuildAsync(failedBuild.CreatedDate, failedBuild.BuildNumber, failedBuild.Source, patterns);
+                    List<BuildError> failures = VsoBuildClient.GetFailedTaskDataFromBuild(
+                        failedBuild.CreatedDate, 
+                        failedBuild.VsoBuildId,
+                        failedBuild.BuildNumber,
+                        failedBuild.JobId,
+                        failedBuild.Source, 
+                        patterns);
 
                     if (failures.Count > 0)
                     {
@@ -28,14 +34,13 @@
             }
         }
 
-        public static void InsertLogsForUnmappedBuilds()
+        public static void UpdateUncategorizedLogs()
         {
-            List<BuildFailure> buildsWithNoLogs = SqlClient.GetBuildWithNoLogs();
-            List<BuildFailure> failures = VsoBuildClient.GetNewLogEntries(buildsWithNoLogs);
+            List<string> buildsWithNoLogs = SqlClient.GetUncategorizedLogs();
 
-            if (failures.Count > 0)
+            if (buildsWithNoLogs.Count > 0)
             {
-                SqlClient.InsertNewFailuresLogs(failures);
+                SqlClient.UpdateUncategorizedLogs(buildsWithNoLogs);
             }
         }
     }
