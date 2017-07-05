@@ -6,10 +6,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'virtu
 from Classify import Classify
 
 classify = Classify()
-_json = open(os.environ['req']).read()
-postreqdata = json.loads(_json.replace("\\", "\\\\"))
-log = postreqdata['log']
+postreqdata = json.loads(open(os.environ['req']).read())
 
 response = open(os.environ['res'], 'w')
-response.write(classify.classifyLog(log))
+response.write(classify.classifyLogs(postreqdata))
 response.close()
