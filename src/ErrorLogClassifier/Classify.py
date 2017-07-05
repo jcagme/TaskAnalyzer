@@ -11,8 +11,12 @@ from sklearn import svm, preprocessing
 
 class Classify:
 
+    '''
+    Function used by the word-distance based model.
+    
     def __custom_distance(self, i,j):
         return (SequenceMatcher(None, i, j).ratio() * jellyfish.jaro_winkler(unicode(i),unicode(j)) * 1000) * (10000 - jellyfish.damerau_levenshtein_distance(unicode(i),unicode(j)))
+    '''
 
     def classifyLog(self, log):
         log = log.lower()
