@@ -1,49 +1,64 @@
 {
   "clusters": [
     {
-      "category": "AzureSync"
+      "category": "AzureSync",
+      "class" : 0
     },
     {
-      "category": "Database"
+      "category": "Database",
+      "class": 0
     },
     {
-      "category": "Docker"
+      "category": "Docker",
+      "class": 0
     },
     {
-      "category": "FileSystem"
+      "category": "FileSystem",
+      "class": 0
     },
     {
-      "category": "Git"
+      "category": "Git",
+      "class": 0
     },
     {
-      "category": "MissingProperty"
+      "category": "MissingProperty",
+      "class": 1
     },
     {
-      "category": "MSBuild"
+      "category": "MSBuild",
+      "class": 1
     },
     {
-      "category": "MyGet"
+      "category": "MyGet",
+      "class": 0
     },
     {
-      "category": "Network"
+      "category": "Network",
+      "class": 0
     },
     {
-      "category": "Publishing"
+      "category": "Publishing",
+      "class": 0
     },
     {
-      "category": "Signing"
+      "category": "Signing",
+      "class": 0
     },
     {
-      "category": "TypeDoesNotExist"
+      "category": "TypeDoesNotExist",
+      "class": 1
     },
     {
-      "category": "TypeNotDefinedOrImported"
+      "category": "TypeNotDefinedOrImported",
+      "class": 1
     },
     {
-      "category": "TypeOrNamespaceNotFound"
+      "category": "TypeOrNamespaceNotFound",
+      "class": 1
     },
     {
-      "category": "UnresolvableReference"
+      "category": "UnresolvableReference",
+      "class": 1
     }
   ]
 }
