@@ -76,3 +76,7 @@ bld/
 *.ide
 *.suo
 .idea/
+/.vs
+/src/.vs/config
+/src/ErrorLogClassifier/__pycache__
+*.picke

@@ -1,0 +1,234 @@
+{
+  "clusters": [
+    {
+      "id": "0",
+      "categories": [
+        "AzureSync"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "1",
+      "categories": [
+        "Signing"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "2",
+      "categories": [
+        "Type or namespace not found",
+        "Database"
+      ],
+      "class": "1"
+    },
+    {
+      "id": "3",
+      "categories": [
+        "AsmHelpers"
+      ],
+      "class": "1"
+    },
+    {
+      "id": "4",
+      "categories": [
+        "Docker",
+        "Network",
+        "Publishing"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "5",
+      "categories": [
+        "Type not defined or imported"
+      ],
+      "class": "1"
+    },
+    {
+      "id": "6",
+      "categories": [
+        "Type does not exist"
+      ],
+      "class": "1"
+    },
+    {
+      "id": "7",
+      "categories": [
+        "Type does not exist"
+      ],
+      "class": "1"
+    },
+    {
+      "id": "8",
+      "categories": [
+        "Publishing"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "9",
+      "categories": [
+        "Network"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "10",
+      "categories": [
+        "File not found"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "11",
+      "categories": [
+        "Method cannot have body"
+      ],
+      "class": "1"
+    },
+    {
+      "id": "12",
+      "categories": [
+        "Unresolvable reference"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "13",
+      "categories": [
+        "Database"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "14",
+      "categories": [
+        "Missing property",
+        "Publishing AzureSync"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "15",
+      "categories": [
+        "Non public instance method in interface"
+      ],
+      "class": "1"
+    },
+    {
+      "id": "16",
+      "categories": [
+        "Network"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "17",
+      "categories": [
+        "Dependency list",
+        "Default interface"
+      ],
+      "class": "1"
+    },
+    {
+      "id": "18",
+      "categories": [
+        "Network"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "19",
+      "categories": [
+        "Signing"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "20",
+      "categories": [
+        "AzureSync"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "21",
+      "categories": [
+        "MyGet",
+        "Network"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "22",
+      "categories": [
+        "Publishing",
+        "Method cannot have body"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "23",
+      "categories": [
+        "Database",
+        "Job send",
+        "Signing"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "24",
+      "categories": [
+        "Type or namespace not found"
+      ],
+      "class": "1"
+    },
+    {
+      "id": "25",
+      "categories": [
+        "Unknown"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "26",
+      "categories": [
+        "Git",
+        "Docker",
+        "Unsupported format version"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "27",
+      "categories": [
+        "Docker"
+      ],
+      "class": "1"
+    },
+    {
+      "id": "28",
+      "categories": [
+        "MyGet",
+        "Network"
+      ],
+      "class": "0"
+    },
+    {
+      "id": "29",
+      "categories": [
+        "Type or namespace not found"
+      ],
+      "class": "1"
+    },
+    {
+      "id": "30",
+      "categories": [
+        "MyGet",
+        "Network"
+      ],
+      "class": "0"
+    }
+  ]
+}

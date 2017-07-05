@@ -1,6 +1,11 @@
+import sys
+import pickle
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'virtualenv/Lib/site-packages')))
+
 import numpy as np
 import pandas as pd
-import pickle
 
 from difflib import SequenceMatcher
 from sklearn import svm, preprocessing, cross_validation
@@ -8,9 +13,9 @@ from sklearn import svm, preprocessing, cross_validation
 data_vectors = []
 target_vector = []
 
-data = pd.read_csv("data.csv")
-target = pd.read_csv("target.csv")
-for i in range(0, 240):
+data = pd.read_csv("distancedata.csv")
+target = pd.read_csv("distancetarget.csv")
+for i in range(0, len(data.columns)-1):
     data_vectors.append(data[str(i)].tolist())
     target_vector.append(target[str(i)].tolist())
 target_vector = np.array([i for sublist in target_vector for i in sublist])
@@ -28,5 +33,5 @@ linearClf.fit(X_train, y_train)
 linear_confidence = linearClf.score(X_test, y_test)
 print("Linear confidence: " + str(linear_confidence))
 
-with open('linearClf.pickle','wb') as f:
+with open('distanceLinearClf.pickle','wb') as f:
     pickle.dump(linearClf, f)
