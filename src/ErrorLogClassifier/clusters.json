@@ -1,0 +1,64 @@
+{
+  "clusters": [
+    {
+      "category": "AzureSync",
+      "class" : 0
+    },
+    {
+      "category": "Database",
+      "class": 0
+    },
+    {
+      "category": "Docker",
+      "class": 0
+    },
+    {
+      "category": "FileSystem",
+      "class": 0
+    },
+    {
+      "category": "Git",
+      "class": 0
+    },
+    {
+      "category": "MissingProperty",
+      "class": 1
+    },
+    {
+      "category": "MSBuild",
+      "class": 1
+    },
+    {
+      "category": "MyGet",
+      "class": 0
+    },
+    {
+      "category": "Network",
+      "class": 0
+    },
+    {
+      "category": "Publishing",
+      "class": 0
+    },
+    {
+      "category": "Signing",
+      "class": 0
+    },
+    {
+      "category": "TypeDoesNotExist",
+      "class": 1
+    },
+    {
+      "category": "TypeNotDefinedOrImported",
+      "class": 1
+    },
+    {
+      "category": "TypeOrNamespaceNotFound",
+      "class": 1
+    },
+    {
+      "category": "UnresolvableReference",
+      "class": 1
+    }
+  ]
+}

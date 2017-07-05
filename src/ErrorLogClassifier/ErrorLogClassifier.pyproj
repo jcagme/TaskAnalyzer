@@ -25,15 +25,25 @@
     <Compile Include="Classify.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="ErrorLogClassifier.py" />
+    <Compile Include="distancemodel.py" />
+    <Compile Include="LogReport.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="model.py" />
+    <Compile Include="run.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="Global|ContinuumAnalytics|Anaconda36-64" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="clusters.json" />
     <Content Include="data.csv">
       <SubType>Code</SubType>
     </Content>
+    <Content Include="distanceclusters.json" />
+    <Content Include="distancedata.csv" />
+    <Content Include="distancetarget.csv" />
+    <Content Include="keywords.csv" />
     <Content Include="representativeelements.csv">
       <SubType>Code</SubType>
     </Content>
