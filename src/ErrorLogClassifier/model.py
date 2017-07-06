@@ -25,7 +25,7 @@ X = data_vectors
 y = target_vector
 X_train, X_test, y_train, y_test = cross_validation.train_test_split(X, y, test_size=0.25)
 
-linearClf = svm.SVC(kernel='linear')
+linearClf = svm.SVC(probability=True, kernel='linear')
 linearClf.fit(X_train, y_train)
 linear_confidence = linearClf.score(X_test, y_test)
 print("Linear confidence: " + str(linear_confidence))
