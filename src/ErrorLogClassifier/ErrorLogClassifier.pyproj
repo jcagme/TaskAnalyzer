@@ -26,6 +26,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="distancemodel.py" />
+    <Compile Include="generatedatafiles.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="LogReport.py">
       <SubType>Code</SubType>
     </Compile>
