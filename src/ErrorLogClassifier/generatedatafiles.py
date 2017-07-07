@@ -1,5 +1,6 @@
 import sys
-
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'virtualenv/Lib/site-packages')))
 import pandas as pd
 
 data = pd.read_csv(sys.argv[1])
