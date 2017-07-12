@@ -1,8 +1,7 @@
 class LogReport(object):
-    def __init__(self, log, category, errorclass):
+    def __init__(self, log, categories):
         self.log = log
-        self.category = category
-        self.errorclass = errorclass
+        self.categories = categories
 
     def returnJson(object):
         return object.__dict__
