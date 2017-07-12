@@ -3,7 +3,7 @@
     using System;
     using System.Collections.Generic;
 
-    public class OutputManager
+    public class LogManager
     {
         public static void SaveTaskFailures()
         {
@@ -19,7 +19,7 @@
                     List<BuildError> failures = VsoBuildClient.GetFailedTaskDataFromBuild(
                         failedBuild.CreatedDate, 
                         failedBuild.VsoBuildId,
-                        failedBuild.BuildNumber,
+                        failedBuild.BuildNumber, 
                         failedBuild.JobId,
                         failedBuild.Source, 
                         patterns);
@@ -42,6 +42,20 @@
             {
                 SqlClient.UpdateUncategorizedLogs(buildsWithNoLogs);
             }
+        }
+
+        public static void UpdateCategories()
+        {
+            List<string> buildsWithNoLogs = SqlClient.GetUniqueFailureLogs();
+            if (buildsWithNoLogs.Count > 0)
+            {
+                SqlClient.UpdateUncategorizedLogs(buildsWithNoLogs);
+            }
+        }
+
+        public static void UpdateMiscategorizedLogs()
+        {
+            SqlClient.UpdateMiscategorizedLogs();
         }
     }
 }

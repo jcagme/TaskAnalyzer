@@ -28,7 +28,7 @@
             string buildDefName = buildData.Definition.Name;
             List<TimelineRecord> failedBuildTasks = GetFailedTasks(vsoBuildId);
 
-            if (failedBuildTasks.Count > 0)
+            if (failedBuildTasks!= null && failedBuildTasks.Count > 0)
             {
                 foreach (TimelineRecord record in failedBuildTasks)
                 {
@@ -46,8 +46,14 @@
         {
             BuildHttpClient buildClient = connection.GetClientAsync<BuildHttpClient>().Result;
             Timeline buildTimeline = buildClient.GetBuildTimelineAsync("DevDiv", buildNumber).Result;
-            List<TimelineRecord> failedBuildTasks = buildTimeline.Records.Where(b => b.Result == TaskResult.Failed && b.Name != "Build").ToList();
-            return failedBuildTasks;
+
+            if (buildTimeline != null)
+            {
+                List<TimelineRecord> failedBuildTasks = buildTimeline.Records.Where(b => b.Result == TaskResult.Failed && b.Name != "Build").ToList();
+                return failedBuildTasks;
+            }
+
+            return null;
         }
 
         private static List<BuildError> GetLogsForBuild(

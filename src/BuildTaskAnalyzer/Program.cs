@@ -4,8 +4,12 @@
     {
         static void Main(string[] args)
         {
-            OutputManager.SaveTaskFailures();
-            OutputManager.UpdateUncategorizedLogs();
+            var logs = SqlClient.GetUniqueFailureLogs();
+            SqlClient.UpdateUncategorizedLogs(logs);
+
+            LogManager.SaveTaskFailures();
+            LogManager.UpdateUncategorizedLogs();
+            LogManager.UpdateMiscategorizedLogs();
         }
     }
 }

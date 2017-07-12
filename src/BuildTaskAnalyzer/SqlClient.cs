@@ -2,6 +2,7 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Data;
     using System.Data.SqlClient;
     using System.Text.RegularExpressions;
 
@@ -37,7 +38,7 @@
         {
             using (SqlConnection connection = new SqlConnection(LocalConnectionString))
             {
-                SqlCommand command = new SqlCommand("SELECT MAX(CreatedDate) FROM TaskFailure", connection);
+                SqlCommand command = new SqlCommand("SELECT MAX(CreatedDate) FROM TaskFailureLogs", connection);
                 connection.Open();
                 object dateTime = command.ExecuteScalar();
 
@@ -201,9 +202,8 @@ WHERE ErrorCount > 0";
                                ,[BuildDefinitionName]
                                ,[FailedTaskName]
                                ,[MatchedError]
-                               ,[LogUri]
-                               ,[Category]
-                               ,[Class])
+                               ,[CategoryMatchLevel]
+                               ,[LogUri])
                          VALUES
                                (@CreatedDate,
                                 @VsoBuildId,
@@ -213,9 +213,8 @@ WHERE ErrorCount > 0";
                                 @BuildDefinitionName,
                                 @FailedTaskName,
                                 @MatchedError,
-                                @LogUri,
-                                @Category,
-                                @Class)", connection);
+                                @CategoryMatchLevel,
+                                @LogUri)", connection);
                     command.Parameters.AddWithValue("@CreatedDate", buildFailure.CreatedDate);
                     command.Parameters.AddWithValue("@VsoBuildId", buildFailure.VsoBuildId);
                     command.Parameters.AddWithValue("@BuildNumber", buildFailure.BuildNumber);
@@ -224,9 +223,8 @@ WHERE ErrorCount > 0";
                     command.Parameters.AddWithValue("@BuildDefinitionName", buildFailure.BuildDefinitionName);
                     command.Parameters.AddWithValue("@FailedTaskName", buildFailure.FailedTask);
                     command.Parameters.AddWithValue("@MatchedError", buildFailure.MatchedError);
+                    command.Parameters.AddWithValue("@CategoryMatchLevel", 0);
                     command.Parameters.AddWithValue("@LogUri", buildFailure.LogUri);
-                    command.Parameters.AddWithValue("@Category", buildFailure.Category);
-                    command.Parameters.AddWithValue("@Class", buildFailure.Class);
                     command.ExecuteNonQuery();
                 }
             }
@@ -242,43 +240,50 @@ WHERE ErrorCount > 0";
 
                 foreach (Classification classification in classifications)
                 {
+                    int level = 0;
+
                     SqlCommand command =
-                    new SqlCommand(@"
-                    UPDATE [dbo].[TaskFailureLogs]
-                    SET [Category] = @Category, 
-                        [Class] = @Class
-                    WHERE MatchedError = @Log", connection);
-                    command.Parameters.AddWithValue("@Category", classification.Category);
-                    command.Parameters.AddWithValue("@Class", classification.ErrorClass);
+                        new SqlCommand(@"
+                            UPDATE [dbo].[TaskFailureLogs]
+                            SET [Category] = @Category, 
+                                [Class] = @Class,
+                                [CategoryMatchLevel] = @CategoryMatchLevel
+                            WHERE MatchedError = @Log", connection);
                     command.Parameters.AddWithValue("@Log", classification.Log);
-                    command.ExecuteNonQuery();
+                    command.Parameters.AddWithValue("@CategoryMatchLevel", level);
+
+                    if (classification.Categories.Count > 0)
+                    {
+                        foreach (Map category in classification.Categories)
+                        {
+                            command.Parameters.AddWithValue("@Category", category.Category);
+                            command.Parameters.AddWithValue("@Class", category.Class);
+                            command.ExecuteNonQuery();
+                            command.Parameters.RemoveAt(3);
+                            command.Parameters.RemoveAt(2);
+                            level++;
+                        }
+                    }
+                    else
+                    {
+                        command.Parameters.AddWithValue("@Category", "Unknown");
+                        command.Parameters.AddWithValue("@Class", -1);
+                        command.ExecuteNonQuery();
+                    }
                 }
             }
         }
 
-        public static void UpdateBuildIdAndJobId(List<BuildError> errors)
+        public static void UpdateMiscategorizedLogs()
         {
             using (SqlConnection connection = new SqlConnection(LocalConnectionString))
             {
                 connection.Open();
-
-                foreach (BuildError error in errors)
+                SqlCommand command = new SqlCommand("UpdateMiscategorizedLogs", connection)
                 {
-                    SqlCommand command =
-                    new SqlCommand(@"
-                    UPDATE [dbo].[TaskFailureLogs]
-                    SET [JobId] = @JobId, 
-                        [BuildNumber] = @BuildNumber
-                    WHERE CreatedDate = @CreatedDate
-                    AND Source = @Source
-                    AND VsoBuildId = @VsoBuildId", connection);
-                    command.Parameters.AddWithValue("@JobId", error.JobId);
-                    command.Parameters.AddWithValue("@BuildNumber", error.BuildNumber);
-                    command.Parameters.AddWithValue("@CreatedDate", error.CreatedDate);
-                    command.Parameters.AddWithValue("@Source", error.Source);
-                    command.Parameters.AddWithValue("@VsoBuildId", error.VsoBuildId);
-                    command.ExecuteNonQuery();
-                }
+                    CommandType = CommandType.StoredProcedure
+                };
+                command.ExecuteNonQuery();
             }
         }
     }
