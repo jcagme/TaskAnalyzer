@@ -6,10 +6,10 @@
     {
         public string Log { get; set; }
 
-        public List<Map> Categories { get; set; }
+        public List<CategoryClassMap> Categories { get; set; }
     }
 
-    public class Map
+    public class CategoryClassMap
     {
         public string Category { get; set; }
 

@@ -4,10 +4,7 @@
     {
         static void Main(string[] args)
         {
-            var logs = SqlClient.GetUniqueFailureLogs();
-            SqlClient.UpdateUncategorizedLogs(logs);
-
-            LogManager.SaveTaskFailures();
+            LogManager.StoreBuildErrorLogs();
             LogManager.UpdateUncategorizedLogs();
             LogManager.UpdateMiscategorizedLogs();
         }

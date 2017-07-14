@@ -8,17 +8,22 @@
 
     static class SqlClient
     {
-        private const string LocalConnectionString = "";
-        private const string HelixProdConnectionString = "";
-        private static List<Classification> equivalenceClasses = new List<Classification>();
+        private static string _analyzerConnectionString;
+        private static string _helixProdConnectionString;
+
+        static SqlClient()
+        {
+            _analyzerConnectionString = SettingsManager.GetStagingSetting("LogAnalysisWriteDbConnectionString");
+            _helixProdConnectionString = SettingsManager.GetProdSetting("HelixWriteDbConnectionString");
+        }
 
         public static List<string> GetUniqueFailureLogs()
         {
             List<string> failureLogs = new List<string>();
 
-            using (SqlConnection connection = new SqlConnection(LocalConnectionString))
+            using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
             {
-                SqlCommand command = new SqlCommand("SELECT DISTINCT MatchedError FROM TaskFailureLogs", connection);
+                SqlCommand command = new SqlCommand("SELECT DISTINCT ErrorLog FROM BuildErrorLogs", connection);
                 connection.Open();
 
                 SqlDataReader reader = command.ExecuteReader();
@@ -34,11 +39,11 @@
             return failureLogs;
         }
 
-        public static DateTime? GetMaxDate()
+        public static DateTime? GetLastLogDate()
         {
-            using (SqlConnection connection = new SqlConnection(LocalConnectionString))
+            using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
             {
-                SqlCommand command = new SqlCommand("SELECT MAX(CreatedDate) FROM TaskFailureLogs", connection);
+                SqlCommand command = new SqlCommand("SELECT MAX(CreatedDate) FROM BuildErrorLogs", connection);
                 connection.Open();
                 object dateTime = command.ExecuteScalar();
 
@@ -60,11 +65,11 @@
         {
             List<string> logs = new List<string>();
 
-            using (SqlConnection connection = new SqlConnection(LocalConnectionString))
+            using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
             {
                 string query = @"
-SELECT DISTINCT MatchedError 
-FROM TaskFailureLogs
+SELECT DISTINCT ErrorLog 
+FROM BuildErrorLogs
 WHERE Category IS NULL 
 OR Class IS NULL";
 
@@ -85,7 +90,7 @@ OR Class IS NULL";
             return logs;
         }
 
-        public static List<BuildError> GetFailedBuildData(DateTime? startDate)
+        public static List<FailedBuild> GetFailedBuildData(DateTime? startDate)
         {
             string baseQuery = @"
 SELECT
@@ -124,9 +129,9 @@ PIVOT
         FOR CountName IN ([WarningCount], [ErrorCount])
     ) AS countPivot
 WHERE ErrorCount > 0";
-            List<BuildError> buildNumbers = new List<BuildError>();
+            List<FailedBuild> buildNumbers = new List<FailedBuild>();
 
-            using (SqlConnection connection = new SqlConnection(HelixProdConnectionString))
+            using (SqlConnection connection = new SqlConnection(_helixProdConnectionString))
             {
                 if (startDate != null)
                 {
@@ -146,7 +151,7 @@ WHERE ErrorCount > 0";
                     if (match.Success)
                     {
                         int vsoBuildNumber = int.Parse(match.Groups[1].Value);
-                        buildNumbers.Add(new BuildError
+                        buildNumbers.Add(new FailedBuild
                         {
                             CreatedDate = new DateTime(reader.GetDateTimeOffset(2).Ticks),
                             Source = reader.GetString(0),
@@ -167,7 +172,7 @@ WHERE ErrorCount > 0";
         {
             List<string> patterns = new List<string>();
 
-            using (SqlConnection connection = new SqlConnection(LocalConnectionString))
+            using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
             {
                 SqlCommand command = new SqlCommand(@"SELECT [Pattern] from Regex", connection);
                 connection.Open();
@@ -183,17 +188,17 @@ WHERE ErrorCount > 0";
             return patterns;
         }
 
-        public static void InsertNewFailuresLogs(List<BuildError> buildFailures)
+        public static void InsertNewFailuresLogs(List<FailedBuild> buildFailures)
         {
-            using (SqlConnection connection = new SqlConnection(LocalConnectionString))
+            using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
             {
                 connection.Open();
 
-                foreach (BuildError buildFailure in buildFailures)
+                foreach (FailedBuild buildFailure in buildFailures)
                 {
                     SqlCommand command =
                     new SqlCommand(@"
-                    INSERT INTO [dbo].[TaskFailureLogs]
+                    INSERT INTO [dbo].[BuildErrorLogs]
                                ([CreatedDate]
                                ,[VsoBuildId]
                                ,[BuildNumber] 
@@ -201,7 +206,7 @@ WHERE ErrorCount > 0";
                                ,[Source]
                                ,[BuildDefinitionName]
                                ,[FailedTaskName]
-                               ,[MatchedError]
+                               ,[ErrorLog]
                                ,[CategoryMatchLevel]
                                ,[LogUri])
                          VALUES
@@ -212,7 +217,7 @@ WHERE ErrorCount > 0";
                                 @Source,
                                 @BuildDefinitionName,
                                 @FailedTaskName,
-                                @MatchedError,
+                                @ErrorLog,
                                 @CategoryMatchLevel,
                                 @LogUri)", connection);
                     command.Parameters.AddWithValue("@CreatedDate", buildFailure.CreatedDate);
@@ -222,7 +227,7 @@ WHERE ErrorCount > 0";
                     command.Parameters.AddWithValue("@Source", buildFailure.Source);
                     command.Parameters.AddWithValue("@BuildDefinitionName", buildFailure.BuildDefinitionName);
                     command.Parameters.AddWithValue("@FailedTaskName", buildFailure.FailedTask);
-                    command.Parameters.AddWithValue("@MatchedError", buildFailure.MatchedError);
+                    command.Parameters.AddWithValue("@ErrorLog", buildFailure.ErrorLog);
                     command.Parameters.AddWithValue("@CategoryMatchLevel", 0);
                     command.Parameters.AddWithValue("@LogUri", buildFailure.LogUri);
                     command.ExecuteNonQuery();
@@ -232,7 +237,7 @@ WHERE ErrorCount > 0";
 
         public static void UpdateUncategorizedLogs(List<string> logs)
         {
-            using (SqlConnection connection = new SqlConnection(LocalConnectionString))
+            using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
             {
                 connection.Open();
 
@@ -244,17 +249,17 @@ WHERE ErrorCount > 0";
 
                     SqlCommand command =
                         new SqlCommand(@"
-                            UPDATE [dbo].[TaskFailureLogs]
+                            UPDATE [dbo].[BuildErrorLogs]
                             SET [Category] = @Category, 
                                 [Class] = @Class,
                                 [CategoryMatchLevel] = @CategoryMatchLevel
-                            WHERE MatchedError = @Log", connection);
+                            WHERE ErrorLog = @Log", connection);
                     command.Parameters.AddWithValue("@Log", classification.Log);
                     command.Parameters.AddWithValue("@CategoryMatchLevel", level);
 
                     if (classification.Categories.Count > 0)
                     {
-                        foreach (Map category in classification.Categories)
+                        foreach (CategoryClassMap category in classification.Categories)
                         {
                             command.Parameters.AddWithValue("@Category", category.Category);
                             command.Parameters.AddWithValue("@Class", category.Class);
@@ -276,13 +281,15 @@ WHERE ErrorCount > 0";
 
         public static void UpdateMiscategorizedLogs()
         {
-            using (SqlConnection connection = new SqlConnection(LocalConnectionString))
+            using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
             {
                 connection.Open();
-                SqlCommand command = new SqlCommand("UpdateMiscategorizedLogs", connection)
+                SqlCommand command = new SqlCommand("usp_updatate_miscategorized_logs", connection)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
+
+                command.CommandTimeout = 60 * 5;
                 command.ExecuteNonQuery();
             }
         }

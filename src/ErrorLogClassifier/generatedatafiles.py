@@ -39,9 +39,9 @@ df = df.transpose()
 df.to_csv("target.csv")
 
 # Generate data.csv
-matchedErrors = data['MatchedError'].tolist()
+ErrorLogs = data['ErrorLog'].tolist()
 keywordOccurrences = []
-for error in matchedErrors:
+for error in ErrorLogs:
     vector = [0] * len(keywords)
     for i in range (0, len(keywords)):
         vector[i] = error.count(keywords[i])

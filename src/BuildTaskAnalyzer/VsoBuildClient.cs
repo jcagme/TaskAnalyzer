@@ -2,7 +2,6 @@
 {
     using System;
     using System.Collections.Generic;
-    using System.IO;
     using System.Linq;
     using System.Text.RegularExpressions;
     using Microsoft.TeamFoundation.Build.WebApi;
@@ -11,23 +10,24 @@
 
     static class VsoBuildClient
     {
-        private static VssConnection connection;
+        private static VssConnection _connection;
 
         static VsoBuildClient()
         {
             Uri vsoCollectionUri = new Uri("https://devdiv.visualstudio.com/DefaultCollection");
-            VssBasicCredential basicCredential = new VssBasicCredential(string.Empty, "");
-            connection = new VssConnection(vsoCollectionUri, basicCredential);
+            string vstsAccessToken = SettingsManager.GetStagingSetting("LogAnalysisVstsPersonalAccessToken");
+            VssBasicCredential basicCredential = new VssBasicCredential(string.Empty, vstsAccessToken);
+            _connection = new VssConnection(vsoCollectionUri, basicCredential);
         }
 
-        public static List<BuildError> GetFailedTaskDataFromBuild(DateTime createdDate, int vsoBuildId, string buildNumber, int jobId, string source, List<string> patterns)
+        public static List<FailedBuild> GetFailedTaskDataFromBuild(DateTime createdDate, int vsoBuildId, string buildNumber, int jobId, string source, List<string> patterns)
         {
-            List<BuildError> failures = new List<BuildError>();
-            BuildHttpClient buildClient = connection.GetClientAsync<BuildHttpClient>().Result;
+            List<FailedBuild> failures = new List<FailedBuild>();
+            BuildHttpClient buildClient = _connection.GetClientAsync<BuildHttpClient>().Result;
             Build buildData = buildClient.GetBuildAsync("DevDiv", vsoBuildId).Result;
             string buildDefName = buildData.Definition.Name;
             List<TimelineRecord> failedBuildTasks = GetFailedTasks(vsoBuildId);
-
+            
             if (failedBuildTasks!= null && failedBuildTasks.Count > 0)
             {
                 foreach (TimelineRecord record in failedBuildTasks)
@@ -44,7 +44,7 @@
 
         private static List<TimelineRecord> GetFailedTasks(int buildNumber)
         {
-            BuildHttpClient buildClient = connection.GetClientAsync<BuildHttpClient>().Result;
+            BuildHttpClient buildClient = _connection.GetClientAsync<BuildHttpClient>().Result;
             Timeline buildTimeline = buildClient.GetBuildTimelineAsync("DevDiv", buildNumber).Result;
 
             if (buildTimeline != null)
@@ -56,7 +56,7 @@
             return null;
         }
 
-        private static List<BuildError> GetLogsForBuild(
+        private static List<FailedBuild> GetLogsForBuild(
             BuildHttpClient buildClient,
             int vsoBuildId,
             string buildNumber,
@@ -67,7 +67,7 @@
             string source,
             List<string> patterns)
         {
-            List<BuildError> buildsWithLogs = new List<BuildError>();
+            List<FailedBuild> buildsWithLogs = new List<FailedBuild>();
             List<string> logs = buildClient.GetBuildLogLinesAsync("DevDiv", vsoBuildId, record.Log.Id).Result;
 
             foreach (string log in logs)
@@ -87,7 +87,7 @@
                             parsedLog = NormalizeLog(parsedLog);
                         }
 
-                        BuildError buildFailureWithLogs = new BuildError
+                        FailedBuild buildFailureWithLogs = new FailedBuild
                         {
                             BuildDefinitionName = buildDefName,
                             VsoBuildId = vsoBuildId,
@@ -96,7 +96,7 @@
                             JobId = jobId,
                             LogUri = record.Log.Url,
                             FailedTask = record.Name,
-                            MatchedError = parsedLog,
+                            ErrorLog = parsedLog,
                             Source = source
                         };
 
