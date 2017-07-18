@@ -289,7 +289,7 @@ WHERE ErrorCount > 0";
                     CommandType = CommandType.StoredProcedure
                 };
 
-                command.CommandTimeout = 60 * 5;
+                command.CommandTimeout = 60 * 15;
                 command.ExecuteNonQuery();
             }
         }
