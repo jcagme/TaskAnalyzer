@@ -2,7 +2,7 @@
 {
     using System;
 
-    public class BuildError
+    public class FailedBuild
     {
         public DateTime CreatedDate { get; set; }
 
@@ -18,7 +18,7 @@
 
         public string LogUri { get; set; }
 
-        public string MatchedError { get; set; }
+        public string ErrorLog { get; set; }
 
         public string Category { get; set; }
 

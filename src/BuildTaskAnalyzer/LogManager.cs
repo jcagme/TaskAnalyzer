@@ -2,21 +2,22 @@
 {
     using System;
     using System.Collections.Generic;
+    using Microsoft.TeamFoundation.Build.WebApi;
 
     public class LogManager
     {
-        public static void SaveTaskFailures()
+        public static void StoreBuildErrorLogs()
         {
-            DateTime? startDate = SqlClient.GetMaxDate();
-            List<BuildError> failedBuilds = SqlClient.GetFailedBuildData(startDate);
+            DateTime? startDate = SqlClient.GetLastLogDate();
+            List<FailedBuild> failedBuilds = SqlClient.GetFailedBuildData(startDate);
 
             List<string> patterns = SqlClient.GetPatterns();
 
-            foreach (BuildError failedBuild in failedBuilds)
+            foreach (FailedBuild failedBuild in failedBuilds)
             {
                 try
                 {
-                    List<BuildError> failures = VsoBuildClient.GetFailedTaskDataFromBuild(
+                    List<FailedBuild> failures = VsoBuildClient.GetFailedTaskDataFromBuild(
                         failedBuild.CreatedDate, 
                         failedBuild.VsoBuildId,
                         failedBuild.BuildNumber, 
@@ -29,8 +30,11 @@
                         SqlClient.InsertNewFailuresLogs(failures);
                     }
                 }
-                catch
-                { }
+                // We only swallow VSTS' BuildNotFoundException since is the only know exception we know is thrown when we query for a build
+                // in Helix DB which has been removed from VSTS
+                catch (AggregateException exc) when 
+                (exc.InnerException.GetType() == typeof(BuildNotFoundException))
+                {}
             }
         }
 
@@ -38,15 +42,6 @@
         {
             List<string> buildsWithNoLogs = SqlClient.GetUncategorizedLogs();
 
-            if (buildsWithNoLogs.Count > 0)
-            {
-                SqlClient.UpdateUncategorizedLogs(buildsWithNoLogs);
-            }
-        }
-
-        public static void UpdateCategories()
-        {
-            List<string> buildsWithNoLogs = SqlClient.GetUniqueFailureLogs();
             if (buildsWithNoLogs.Count > 0)
             {
                 SqlClient.UpdateUncategorizedLogs(buildsWithNoLogs);
