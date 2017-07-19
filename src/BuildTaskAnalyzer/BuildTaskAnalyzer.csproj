@@ -129,7 +129,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FailedBuild.cs" />
+    <Compile Include="Build.cs" />
     <Compile Include="Classifier.cs" />
     <Compile Include="Classification.cs" />
     <Compile Include="KeyVaultSecrets.cs" />

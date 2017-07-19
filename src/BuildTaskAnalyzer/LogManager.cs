@@ -6,18 +6,32 @@
 
     public class LogManager
     {
+        public static void StoreTotalNumberOfBuilds()
+        {
+            DateTime? startDate = SqlClient.GetLastStoredBuild();
+
+            if (startDate == null)
+            {
+                // MIN date on the failed builds table so we don't care about previous builds
+                startDate = DateTime.Parse("2016-09-29 14:30:49.9066667");
+            }
+
+            List<Build> totalBuilds = SqlClient.GetBuildData(startDate, false);
+            SqlClient.InsertNewBuilds(totalBuilds);
+        }
+
         public static void StoreBuildErrorLogs()
         {
             DateTime? startDate = SqlClient.GetLastLogDate();
-            List<FailedBuild> failedBuilds = SqlClient.GetFailedBuildData(startDate);
+            List<Build> failedBuilds = SqlClient.GetBuildData(startDate, true);
 
             List<string> patterns = SqlClient.GetPatterns();
 
-            foreach (FailedBuild failedBuild in failedBuilds)
+            foreach (Build failedBuild in failedBuilds)
             {
                 try
                 {
-                    List<FailedBuild> failures = VsoBuildClient.GetFailedTaskDataFromBuild(
+                    List<Build> failures = VsoBuildClient.GetFailedTaskDataFromBuild(
                         failedBuild.CreatedDate, 
                         failedBuild.VsoBuildId,
                         failedBuild.BuildNumber, 

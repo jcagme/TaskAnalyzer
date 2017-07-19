@@ -20,11 +20,11 @@
             _connection = new VssConnection(vsoCollectionUri, basicCredential);
         }
 
-        public static List<FailedBuild> GetFailedTaskDataFromBuild(DateTime createdDate, int vsoBuildId, string buildNumber, int jobId, string source, List<string> patterns)
+        public static List<Build> GetFailedTaskDataFromBuild(DateTime createdDate, int vsoBuildId, string buildNumber, int jobId, string source, List<string> patterns)
         {
-            List<FailedBuild> failures = new List<FailedBuild>();
+            List<Build> failures = new List<Build>();
             BuildHttpClient buildClient = _connection.GetClientAsync<BuildHttpClient>().Result;
-            Build buildData = buildClient.GetBuildAsync("DevDiv", vsoBuildId).Result;
+            Microsoft.TeamFoundation.Build.WebApi.Build buildData = buildClient.GetBuildAsync("DevDiv", vsoBuildId).Result;
             string buildDefName = buildData.Definition.Name;
             List<TimelineRecord> failedBuildTasks = GetFailedTasks(vsoBuildId);
             
@@ -56,7 +56,7 @@
             return null;
         }
 
-        private static List<FailedBuild> GetLogsForBuild(
+        private static List<Build> GetLogsForBuild(
             BuildHttpClient buildClient,
             int vsoBuildId,
             string buildNumber,
@@ -67,7 +67,7 @@
             string source,
             List<string> patterns)
         {
-            List<FailedBuild> buildsWithLogs = new List<FailedBuild>();
+            List<Build> buildsWithLogs = new List<Build>();
             List<string> logs = buildClient.GetBuildLogLinesAsync("DevDiv", vsoBuildId, record.Log.Id).Result;
 
             foreach (string log in logs)
@@ -87,7 +87,7 @@
                             parsedLog = NormalizeLog(parsedLog);
                         }
 
-                        FailedBuild buildFailureWithLogs = new FailedBuild
+                        Build buildFailureWithLogs = new Build
                         {
                             BuildDefinitionName = buildDefName,
                             VsoBuildId = vsoBuildId,

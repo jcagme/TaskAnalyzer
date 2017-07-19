@@ -2,7 +2,7 @@
 {
     using System;
 
-    public class FailedBuild
+    public class Build
     {
         public DateTime CreatedDate { get; set; }
 
