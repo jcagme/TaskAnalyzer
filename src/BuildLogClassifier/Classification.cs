@@ -1,4 +1,4 @@
-﻿namespace BuildTaskAnalyzer
+﻿namespace BuildLogClassifier
 {
     using System.Collections.Generic;
 

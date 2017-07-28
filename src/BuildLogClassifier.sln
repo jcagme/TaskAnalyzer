@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26606.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BuildTaskAnalyzer", "BuildTaskAnalyzer\BuildTaskAnalyzer.csproj", "{9934726A-932B-4C96-A94D-2495EEC2A342}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BuildLogClassifier", "BuildLogClassifier\BuildLogClassifier.csproj", "{9934726A-932B-4C96-A94D-2495EEC2A342}"
 EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "ErrorLogClassifier", "ErrorLogClassifier\ErrorLogClassifier.pyproj", "{D2A8C63D-A874-435F-B772-B4B9A16A45D5}"
 EndProject

@@ -1,4 +1,4 @@
-﻿namespace BuildTaskAnalyzer
+﻿namespace BuildLogClassifier
 {
     using System;
     using System.Collections.Generic;
@@ -162,15 +162,19 @@ PIVOT
 
                     if (match.Success)
                     {
-                        int vsoBuildNumber = int.Parse(match.Groups[1].Value);
-                        builds.Add(new Build
+                        int vsoBuildNumber = 0;
+
+                        if (int.TryParse(match.Groups[1].Value, out vsoBuildNumber))
                         {
-                            CreatedDate = new DateTime(reader.GetDateTimeOffset(2).Ticks),
-                            Source = reader.GetString(0),
-                            VsoBuildId = vsoBuildNumber,
-                            BuildNumber = reader.GetString(4),
-                            JobId = reader.GetInt32(3)
-                        });
+                            builds.Add(new Build
+                            {
+                                CreatedDate = new DateTime(reader.GetDateTimeOffset(2).Ticks),
+                                Source = reader.GetString(0),
+                                VsoBuildId = vsoBuildNumber,
+                                BuildNumber = reader.GetString(4),
+                                JobId = reader.GetInt32(3)
+                            });
+                        }
                     }
                 }
 
@@ -259,12 +263,18 @@ PIVOT
                     new SqlCommand(@"
                     INSERT INTO [dbo].[BuildHistory]
                                ([BuildDate]
-                               ,[Source])
+                               ,[Source]
+                               ,[BuildNumber]
+                               ,[VsoBuildId])
                          VALUES
-                               (@BuildDate,
-                                @Source)", connection);
+                               (@BuildDate
+                                ,@Source
+                                ,@BuildNumber
+                                ,@VsoBuildId)", connection);
                     command.Parameters.AddWithValue("@BuildDate", build.CreatedDate);
                     command.Parameters.AddWithValue("@Source", build.Source);
+                    command.Parameters.AddWithValue("@BuildNumber", build.BuildNumber);
+                    command.Parameters.AddWithValue("@VsoBuildId", build.VsoBuildId);
                     command.ExecuteNonQuery();
                 }
             }
@@ -324,12 +334,12 @@ PIVOT
                     CommandType = CommandType.StoredProcedure
                 };
 
-                command.CommandTimeout = 60 * 15;
+                command.CommandTimeout = 60 * 30;
                 command.ExecuteNonQuery();
             }
         }
 
-        public static DateTime? GetLastStoredBuild()
+        public static DateTime? GetLastStoredBuildDate()
         {
             using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
             {
@@ -348,6 +358,135 @@ PIVOT
                 }
 
                 return null;
+            }
+        }
+
+        public static HashSet<int> GetStoredVsoBuilds()
+        {
+            HashSet<int> recordedBuilds = new HashSet<int>();
+
+            using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
+            {
+                SqlCommand command = new SqlCommand("SELECT DISTINCT(VsoBuildId) FROM BuildHistory", connection);
+                connection.Open();
+
+                SqlDataReader reader = command.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    recordedBuilds.Add(reader.GetInt32(0));
+                }
+            }
+
+            return recordedBuilds;
+        }
+
+        public static List<BuildSummaryItem> GetBuildSummaryItems(DateTime? startDate)
+        {
+            List<BuildSummaryItem> buildSummaryItems = new List<BuildSummaryItem>();
+            string baseQuery = @"SELECT 
+	H.BuildDate
+	,H.[Source] AS Branch
+	,COUNT(DISTINCT H.BuildNumber) AS SuccesfulBuildCount
+	,COUNT(DISTINCT E.BuildNumber) AS FailedBuildCount
+
+FROM BuildHistory H
+LEFT JOIN BuildErrorLogs E
+ON 
+	E.[Source] = H.[Source]
+	AND E.BuildNumber = H.BuildNumber
+{0}
+GROUP BY 
+	H.BuildDate
+	,H.[Source]";
+
+            baseQuery = string.Format(baseQuery, startDate != null ? $"WHERE BuildDate >= '{startDate}'" : string.Empty);
+
+            using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
+            {
+                SqlCommand command = new SqlCommand(baseQuery, connection);
+                connection.Open();
+
+                SqlDataReader reader = command.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    buildSummaryItems.Add(new BuildSummaryItem
+                    {
+                        BuildDate = reader.GetDateTime(0),
+                        Branch = reader.GetString(1),
+                        SuccesfulBuildCount = reader.GetInt32(2),
+                        FailedBuildCount = reader.GetInt32(3)
+                    });
+                }
+            }
+
+            return buildSummaryItems;
+        }
+
+        public static void UpsertNewBuildSummaries(List<BuildSummaryItem> buildSummaryItems)
+        {
+            List<BuildSummaryItem> itemsToUpdate = new List<BuildSummaryItem>();
+            using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
+            {
+                connection.Open();
+
+                foreach (BuildSummaryItem summaryItem in buildSummaryItems)
+                {
+                    try
+                    {
+                        SqlCommand command =
+                        new SqlCommand(@"
+                    INSERT INTO [dbo].[BuildSummary]
+                               ([BuildDate]
+                               ,[Branch]
+                               ,[SuccesfulBuildCount]
+                               ,[FailedBuildCount])
+                         VALUES
+                               (@BuildDate
+                                ,@Branch
+                                ,@SuccesfulBuildCount
+                                ,@FailedBuildCount)", connection);
+                        command.Parameters.AddWithValue("@BuildDate", summaryItem.BuildDate);
+                        command.Parameters.AddWithValue("@Branch", summaryItem.Branch);
+                        command.Parameters.AddWithValue("@SuccesfulBuildCount", summaryItem.SuccesfulBuildCount);
+                        command.Parameters.AddWithValue("@FailedBuildCount", summaryItem.FailedBuildCount);
+                        command.ExecuteNonQuery();
+                    }
+                    // When we try to insert a PK combination which already exist we add the item to a list of items to update.
+                    // 2627 is the exception number when we try to insert a duplicate key. https://docs.microsoft.com/en-us/sql/relational-databases/replication/mssql-eng002627
+                    catch (SqlException e)
+                    when (e.Number == 2627)
+                    {
+                        itemsToUpdate.Add(summaryItem);
+                    }
+                }
+            }
+
+            UpdateExistingBuildSummaries(itemsToUpdate);
+        }
+
+        private static void UpdateExistingBuildSummaries(List<BuildSummaryItem> itemsToUpdate)
+        {
+            using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
+            {
+                connection.Open();
+
+                foreach (BuildSummaryItem summaryItem in itemsToUpdate)
+                {
+                    SqlCommand command =
+                        new SqlCommand(@"
+                    UPDATE dbo.BuildSummary 
+                    SET SuccesfulBuildCount = @SuccesfulBuildCount,
+                        FailedBuildCount = @FailedBuildCount
+                    WHERE BuildDate = @BuildDate
+                    AND Branch = @Branch", connection);
+                    command.Parameters.AddWithValue("@SuccesfulBuildCount", summaryItem.SuccesfulBuildCount);
+                    command.Parameters.AddWithValue("@FailedBuildCount", summaryItem.FailedBuildCount);
+                    command.Parameters.AddWithValue("@BuildDate", summaryItem.BuildDate);
+                    command.Parameters.AddWithValue("@Branch", summaryItem.Branch);
+                    command.ExecuteNonQuery();
+                }
             }
         }
     }

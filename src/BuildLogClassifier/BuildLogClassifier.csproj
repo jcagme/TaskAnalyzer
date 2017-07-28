@@ -7,8 +7,8 @@
     <ProjectGuid>{9934726A-932B-4C96-A94D-2495EEC2A342}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>BuildTaskAnalyzer</RootNamespace>
-    <AssemblyName>BuildTaskAnalyzer</AssemblyName>
+    <RootNamespace>BuildLogClassifier</RootNamespace>
+    <AssemblyName>BuildLogClassifier</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -130,6 +130,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Build.cs" />
+    <Compile Include="BuildSummaryItem.cs" />
     <Compile Include="Classifier.cs" />
     <Compile Include="Classification.cs" />
     <Compile Include="KeyVaultSecrets.cs" />

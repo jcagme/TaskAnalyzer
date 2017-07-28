@@ -3,7 +3,7 @@
  we should remove this file and reference common project instead.
  */
 
-namespace BuildTaskAnalyzer
+namespace BuildLogClassifier
 {
     using Microsoft.Azure.KeyVault;
     using Microsoft.Azure.KeyVault.Models;

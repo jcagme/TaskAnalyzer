@@ -1,14 +1,16 @@
-﻿namespace BuildTaskAnalyzer
+﻿namespace BuildLogClassifier
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using Microsoft.TeamFoundation.Build.WebApi;
 
     public class LogManager
     {
         public static void StoreTotalNumberOfBuilds()
         {
-            DateTime? startDate = SqlClient.GetLastStoredBuild();
+            DateTime? startDate = SqlClient.GetLastStoredBuildDate();
+            HashSet<int> recordedBuilds = SqlClient.GetStoredVsoBuilds();
 
             if (startDate == null)
             {
@@ -17,6 +19,9 @@
             }
 
             List<Build> totalBuilds = SqlClient.GetBuildData(startDate, false);
+
+            // Extra filter to avoid dups since we cannot only rely on BuildDate since it has not time
+            totalBuilds = totalBuilds.Where(b => !recordedBuilds.Contains(b.VsoBuildId)).ToList();
             SqlClient.InsertNewBuilds(totalBuilds);
         }
 
@@ -49,6 +54,17 @@
                 catch (AggregateException exc) when 
                 (exc.InnerException.GetType() == typeof(BuildNotFoundException))
                 {}
+            }
+        }
+
+        public static void UpdateBuildSummary()
+        {
+            DateTime? startDate = SqlClient.GetLastStoredBuildDate();
+            List<BuildSummaryItem> buildSummaryItems = SqlClient.GetBuildSummaryItems(startDate);
+
+            if (buildSummaryItems.Count > 0)
+            {
+                SqlClient.UpsertNewBuildSummaries(buildSummaryItems);
             }
         }
 
