@@ -4,17 +4,24 @@
     using System.Collections.Generic;
     using System.Data;
     using System.Data.SqlClient;
+    using System.Linq;
+    using System.Net.Http;
+    using System.Net.Http.Headers;
+    using System.Reflection;
     using System.Text.RegularExpressions;
+    using Newtonsoft.Json;
 
     static class SqlClient
     {
         private static string _analyzerConnectionString;
         private static string _helixProdConnectionString;
+        private static readonly Lazy<List<string>> _supportedBranches;
 
         static SqlClient()
         {
             _analyzerConnectionString = SettingsManager.GetStagingSetting("LogAnalysisWriteDbConnectionString");
             _helixProdConnectionString = SettingsManager.GetProdSetting("HelixWriteDbConnectionString");
+            _supportedBranches = new Lazy<List<string>>(SetSupportedBranches);
         }
 
         public static List<string> GetUniqueFailureLogs()
@@ -180,6 +187,8 @@ PIVOT
 
                 reader.Close();
             }
+
+            RemoveNotSupportedBranches(builds);
 
             return builds;
         }
@@ -488,6 +497,34 @@ GROUP BY
                     command.ExecuteNonQuery();
                 }
             }
+        }
+
+        private static void RemoveNotSupportedBranches(List<Build> builds)
+        {
+            builds = builds.Where(b => _supportedBranches.Value.Contains(b.Source)).ToList();
+        }
+
+        private static List<string> SetSupportedBranches()
+        {
+            string authToken = SettingsManager.GetStagingSetting("GitHubApiAccessToken");
+            HttpClient client = new HttpClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("token", authToken);
+            client.DefaultRequestHeaders.Accept.Clear();
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            client.DefaultRequestHeaders.UserAgent.Add(
+                new ProductInfoHeaderValue(
+                    "Build-Log-Classifier-Config",
+                    typeof(SettingsManager).GetTypeInfo().Assembly.GetName().Version.ToString())
+            );
+
+            HttpResponseMessage response = client.GetAsync("https://api.github.com/repos/dotnet/core-eng/contents/build-log-classifier-config/supported-branches.json").Result;
+            dynamic responseContent = response.Content.ReadAsAsync<object>().Result;
+            byte[] data = Convert.FromBase64String((string) responseContent.content);
+            string decodedContent = System.Text.Encoding.UTF8.GetString(data);
+
+            List<string> supportedBranches = JsonConvert.DeserializeObject<List<string>>(decodedContent);
+
+            return supportedBranches;
         }
     }
 }

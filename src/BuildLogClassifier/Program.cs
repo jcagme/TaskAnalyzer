@@ -1,6 +1,7 @@
 ﻿namespace BuildLogClassifier
 {
     using System;
+    using System.Reflection;
 
     class Program
     {
