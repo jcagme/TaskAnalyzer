@@ -90,7 +90,7 @@ namespace BuildLogClassifier
 
             MatchCollection allMatches = s_keyVaultReferenceRegex.Matches(value);
             List<string> matchList = allMatches.Cast<Match>().Select(m => m.Groups["key"].Value).ToList();
-            string[] replacements = await Task.WhenAll(matchList.Select(GetSecretAsync));
+            string[] replacements = await Task.WhenAll(matchList.Select(GetSecretAsync)).ConfigureAwait(false);
 
             Dictionary<string, string> replacementDictionary = matchList.Select((key, i) => new { key, value = replacements[i] }).ToDictionary(p => p.key, p => p.value);
 

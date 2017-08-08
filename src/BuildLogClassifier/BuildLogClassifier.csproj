@@ -129,6 +129,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AzyncLazy.cs" />
     <Compile Include="Build.cs" />
     <Compile Include="BuildSummaryItem.cs" />
     <Compile Include="Classifier.cs" />

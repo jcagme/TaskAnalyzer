@@ -4,10 +4,11 @@
     using System.Collections.Generic;
     using System.Linq;
     using Microsoft.TeamFoundation.Build.WebApi;
+    using System.Threading.Tasks;
 
     public class LogManager
     {
-        public static void StoreTotalNumberOfBuilds()
+        public static async Task StoreTotalNumberOfBuildsAsync()
         {
             DateTime? startDate = SqlClient.GetLastStoredBuildDate();
             HashSet<int> recordedBuilds = SqlClient.GetStoredVsoBuilds();
@@ -18,17 +19,17 @@
                 startDate = DateTime.Parse("2016-09-29 14:30:49.9066667");
             }
 
-            List<Build> totalBuilds = SqlClient.GetBuildData(startDate, false);
+            List<Build> totalBuilds = await SqlClient.GetBuildDataAsync(startDate, false);
 
             // Extra filter to avoid dups since we cannot only rely on BuildDate since it has not time
             totalBuilds = totalBuilds.Where(b => !recordedBuilds.Contains(b.VsoBuildId)).ToList();
             SqlClient.InsertNewBuilds(totalBuilds);
         }
 
-        public static void StoreBuildErrorLogs()
+        public static async Task StoreBuildErrorLogsAsync()
         {
             DateTime? startDate = SqlClient.GetLastLogDate();
-            List<Build> failedBuilds = SqlClient.GetBuildData(startDate, true);
+            List<Build> failedBuilds = await SqlClient.GetBuildDataAsync(startDate, true);
 
             List<string> patterns = SqlClient.GetPatterns();
 
@@ -36,13 +37,13 @@
             {
                 try
                 {
-                    List<Build> failures = VsoBuildClient.GetFailedTaskDataFromBuild(
+                    List<Build> failures = await VsoBuildClient.GetFailedTaskDataFromBuildAsync(
                         failedBuild.CreatedDate, 
                         failedBuild.VsoBuildId,
                         failedBuild.BuildNumber, 
                         failedBuild.JobId,
                         failedBuild.Source, 
-                        patterns);
+                        patterns).ConfigureAwait(false);
 
                     if (failures.Count > 0)
                     {
@@ -68,13 +69,13 @@
             }
         }
 
-        public static void UpdateUncategorizedLogs()
+        public static async Task UpdateUncategorizedLogsAsync()
         {
             List<string> buildsWithNoLogs = SqlClient.GetUncategorizedLogs();
 
             if (buildsWithNoLogs.Count > 0)
             {
-                SqlClient.UpdateUncategorizedLogs(buildsWithNoLogs);
+                await SqlClient.UpdateUncategorizedLogsAsync(buildsWithNoLogs).ConfigureAwait(false);
             }
         }
 

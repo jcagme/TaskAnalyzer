@@ -1,7 +1,6 @@
 ﻿namespace BuildLogClassifier
 {
     using System;
-    using System.Reflection;
 
     class Program
     {
@@ -9,15 +8,16 @@
         {
             try
             {
-                LogManager.StoreTotalNumberOfBuilds();
-                LogManager.StoreBuildErrorLogs();
+                LogManager.StoreTotalNumberOfBuildsAsync().Wait();
+                LogManager.StoreBuildErrorLogsAsync().Wait();
                 LogManager.UpdateBuildSummary();
-                LogManager.UpdateUncategorizedLogs();
+                LogManager.UpdateUncategorizedLogsAsync().Wait();
                 LogManager.UpdateMiscategorizedLogs();
             }
-            catch (Exception e)
+            catch (Exception exc)
             {
-                Console.WriteLine(e);
+                Console.WriteLine($"---------------------- Application failed on: {DateTime.Now} ----------------------");
+                Console.WriteLine(exc);
             }
         }
     }

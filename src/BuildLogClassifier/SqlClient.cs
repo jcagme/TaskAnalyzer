@@ -1,5 +1,6 @@
 ﻿namespace BuildLogClassifier
 {
+    using Newtonsoft.Json;
     using System;
     using System.Collections.Generic;
     using System.Data;
@@ -9,19 +10,19 @@
     using System.Net.Http.Headers;
     using System.Reflection;
     using System.Text.RegularExpressions;
-    using Newtonsoft.Json;
+    using System.Threading.Tasks;
 
     static class SqlClient
     {
         private static string _analyzerConnectionString;
         private static string _helixProdConnectionString;
-        private static readonly Lazy<List<string>> _supportedBranches;
+        private static readonly Lazy<Task<List<string>>> _supportedBranches;
 
         static SqlClient()
         {
             _analyzerConnectionString = SettingsManager.GetStagingSetting("LogAnalysisWriteDbConnectionString");
             _helixProdConnectionString = SettingsManager.GetProdSetting("HelixWriteDbConnectionString");
-            _supportedBranches = new Lazy<List<string>>(SetSupportedBranches);
+            _supportedBranches = new Lazy<Task<List<string>>>(() => Task.Run(SetSupportedBranchesAsync));
         }
 
         public static List<string> GetUniqueFailureLogs()
@@ -51,7 +52,9 @@
             using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
             {
                 SqlCommand command = new SqlCommand("SELECT MAX(CreatedDate) FROM BuildErrorLogs", connection);
+                command.CommandTimeout = 60 * 5;
                 connection.Open();
+
                 object dateTime = command.ExecuteScalar();
 
                 if (dateTime != null)
@@ -97,7 +100,7 @@ OR Class IS NULL";
             return logs;
         }
 
-        public static List<Build> GetBuildData(DateTime? startDate, bool isFailedBuildsData)
+        public static async Task<List<Build>> GetBuildDataAsync(DateTime? startDate, bool isFailedBuildsData)
         {
             string baseQuery = @"
 SELECT
@@ -188,7 +191,7 @@ PIVOT
                 reader.Close();
             }
 
-            RemoveNotSupportedBranches(builds);
+            await RemoveNotSupportedBranchesAsync(builds);
 
             return builds;
         }
@@ -289,13 +292,13 @@ PIVOT
             }
         }
 
-        public static void UpdateUncategorizedLogs(List<string> logs)
+        public static async Task UpdateUncategorizedLogsAsync(List<string> logs)
         {
             using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
             {
                 connection.Open();
 
-                List<Classification> classifications = Classifier.GetClassifications(logs);
+                List<Classification> classifications = await Classifier.GetClassificationsAsync(logs).ConfigureAwait(false);
 
                 foreach (Classification classification in classifications)
                 {
@@ -308,6 +311,7 @@ PIVOT
                                 [Class] = @Class,
                                 [CategoryMatchLevel] = @CategoryMatchLevel
                             WHERE ErrorLog = @Log", connection);
+                    command.CommandTimeout = 60 * 10;
                     command.Parameters.AddWithValue("@Log", classification.Log);
                     command.Parameters.AddWithValue("@CategoryMatchLevel", level);
 
@@ -414,6 +418,7 @@ GROUP BY
             using (SqlConnection connection = new SqlConnection(_analyzerConnectionString))
             {
                 SqlCommand command = new SqlCommand(baseQuery, connection);
+                command.CommandTimeout = 60 * 10;
                 connection.Open();
 
                 SqlDataReader reader = command.ExecuteReader();
@@ -499,12 +504,13 @@ GROUP BY
             }
         }
 
-        private static void RemoveNotSupportedBranches(List<Build> builds)
+        private static async Task RemoveNotSupportedBranchesAsync(List<Build> builds)
         {
-            builds = builds.Where(b => _supportedBranches.Value.Contains(b.Source)).ToList();
+            List<string> branches = await _supportedBranches.Value.ConfigureAwait(false);
+            builds = builds.Where(b => branches.Contains(b.Source)).ToList();
         }
 
-        private static List<string> SetSupportedBranches()
+        private static async Task<List<string>> SetSupportedBranchesAsync()
         {
             string authToken = SettingsManager.GetStagingSetting("GitHubApiAccessToken");
             HttpClient client = new HttpClient();
@@ -518,7 +524,7 @@ GROUP BY
             );
 
             HttpResponseMessage response = client.GetAsync("https://api.github.com/repos/dotnet/core-eng/contents/build-log-classifier-config/supported-branches.json").Result;
-            dynamic responseContent = response.Content.ReadAsAsync<object>().Result;
+            dynamic responseContent = await response.Content.ReadAsAsync<object>().ConfigureAwait(false);
             byte[] data = Convert.FromBase64String((string) responseContent.content);
             string decodedContent = System.Text.Encoding.UTF8.GetString(data);
 

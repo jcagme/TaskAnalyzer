@@ -1,12 +1,13 @@
 ﻿namespace BuildLogClassifier
 {
+    using Microsoft.TeamFoundation.Build.WebApi;
+    using Microsoft.VisualStudio.Services.Common;
+    using Microsoft.VisualStudio.Services.WebApi;
     using System;
     using System.Collections.Generic;
     using System.Linq;
     using System.Text.RegularExpressions;
-    using Microsoft.TeamFoundation.Build.WebApi;
-    using Microsoft.VisualStudio.Services.Common;
-    using Microsoft.VisualStudio.Services.WebApi;
+    using System.Threading.Tasks;
 
     static class VsoBuildClient
     {
@@ -20,13 +21,13 @@
             _connection = new VssConnection(vsoCollectionUri, basicCredential);
         }
 
-        public static List<Build> GetFailedTaskDataFromBuild(DateTime createdDate, int vsoBuildId, string buildNumber, int jobId, string source, List<string> patterns)
+        public static async Task<List<Build>> GetFailedTaskDataFromBuildAsync(DateTime createdDate, int vsoBuildId, string buildNumber, int jobId, string source, List<string> patterns)
         {
             List<Build> failures = new List<Build>();
             BuildHttpClient buildClient = _connection.GetClientAsync<BuildHttpClient>().Result;
-            Microsoft.TeamFoundation.Build.WebApi.Build buildData = buildClient.GetBuildAsync("DevDiv", vsoBuildId).Result;
+            Microsoft.TeamFoundation.Build.WebApi.Build buildData = await buildClient.GetBuildAsync("DevDiv", vsoBuildId).ConfigureAwait(false);
             string buildDefName = buildData.Definition.Name;
-            List<TimelineRecord> failedBuildTasks = GetFailedTasks(vsoBuildId);
+            List<TimelineRecord> failedBuildTasks = await GetFailedTasksAsync(vsoBuildId).ConfigureAwait(false);
             
             if (failedBuildTasks!= null && failedBuildTasks.Count > 0)
             {
@@ -34,7 +35,7 @@
                 {
                     if (record.Log != null)
                     {
-                        failures.AddRange(GetLogsForBuild(buildClient, vsoBuildId, buildNumber, jobId, record, buildDefName, createdDate, source, patterns));
+                        failures.AddRange(await GetLogsForBuildAsync(buildClient, vsoBuildId, buildNumber, jobId, record, buildDefName, createdDate, source, patterns).ConfigureAwait(false));
                     }
                 }
             }
@@ -42,10 +43,10 @@
             return failures;
         }
 
-        private static List<TimelineRecord> GetFailedTasks(int buildNumber)
+        private static async Task<List<TimelineRecord>> GetFailedTasksAsync(int buildNumber)
         {
             BuildHttpClient buildClient = _connection.GetClientAsync<BuildHttpClient>().Result;
-            Timeline buildTimeline = buildClient.GetBuildTimelineAsync("DevDiv", buildNumber).Result;
+            Timeline buildTimeline = await buildClient.GetBuildTimelineAsync("DevDiv", buildNumber).ConfigureAwait(false);
 
             if (buildTimeline != null)
             {
@@ -56,7 +57,7 @@
             return null;
         }
 
-        private static List<Build> GetLogsForBuild(
+        private static async Task<List<Build>> GetLogsForBuildAsync(
             BuildHttpClient buildClient,
             int vsoBuildId,
             string buildNumber,
@@ -68,7 +69,7 @@
             List<string> patterns)
         {
             List<Build> buildsWithLogs = new List<Build>();
-            List<string> logs = buildClient.GetBuildLogLinesAsync("DevDiv", vsoBuildId, record.Log.Id).Result;
+            List<string> logs = await buildClient.GetBuildLogLinesAsync("DevDiv", vsoBuildId, record.Log.Id).ConfigureAwait(false);
 
             foreach (string log in logs)
             {
